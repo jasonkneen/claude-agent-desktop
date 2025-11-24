@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 
 import AttachmentPreviewList from '@/components/AttachmentPreviewList';
 
-import type { ChatModelPreference } from '../../shared/types/ipc';
+import type { ChatModelPreference, SmartModelVariant } from '../../shared/types/ipc';
 
 interface ChatInputProps {
   value: string;
@@ -53,8 +53,39 @@ export default function ChatInput({
   const MAX_TEXTAREA_HEIGHT = 200;
   const lastReportedHeightRef = useRef<number | null>(null);
   const dragCounterRef = useRef(0);
+  const lastSmartPreferenceRef = useRef<ChatModelPreference>('smart-sonnet');
   const [isDragActive, setIsDragActive] = useState(false);
   const computedCanSend = canSend ?? Boolean(value.trim());
+  const isSmartMode = modelPreference !== 'fast';
+  const smartVariant = modelPreference === 'smart-opus' ? 'opus' : 'sonnet';
+
+  const modelPillClass = (isActive: boolean, size: 'default' | 'compact' = 'default') =>
+    `rounded-full ${size === 'compact' ? 'px-2.5 py-1' : 'px-3 py-1'} text-xs font-semibold transition ${
+      isActive ?
+        'bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-100'
+      : 'text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-white'
+    } ${isModelPreferenceUpdating ? 'opacity-70' : ''}`;
+
+  const handleModelPreferenceSelect = (preference: ChatModelPreference) => {
+    if (preference === modelPreference) return;
+    if (isModelPreferenceUpdating) return;
+    onModelPreferenceChange(preference);
+  };
+
+  const handlePrimaryModelToggle = (mode: 'fast' | 'smart') => {
+    if (mode === 'fast') {
+      handleModelPreferenceSelect('fast');
+      return;
+    }
+
+    const nextPreference = isSmartMode ? modelPreference : lastSmartPreferenceRef.current;
+    handleModelPreferenceSelect(nextPreference);
+  };
+
+  const handleSmartModelToggle = (variant: SmartModelVariant) => {
+    const nextPreference: ChatModelPreference = variant === 'opus' ? 'smart-opus' : 'smart-sonnet';
+    handleModelPreferenceSelect(nextPreference);
+  };
 
   const reportHeight = useCallback(
     (height: number) => {
@@ -183,6 +214,12 @@ export default function ChatInput({
     adjustTextareaHeight();
   }, [value]);
 
+  useEffect(() => {
+    if (isSmartMode) {
+      lastSmartPreferenceRef.current = modelPreference;
+    }
+  }, [isSmartMode, modelPreference]);
+
   useLayoutEffect(() => {
     const element = containerRef.current;
     if (!element) return;
@@ -203,12 +240,6 @@ export default function ChatInput({
 
     return () => observer.disconnect();
   }, [reportHeight]);
-
-  const handleModelToggle = (preference: ChatModelPreference) => {
-    if (preference === modelPreference) return;
-    if (isModelPreferenceUpdating) return;
-    onModelPreferenceChange(preference);
-  };
 
   return (
     <div
@@ -274,38 +305,70 @@ export default function ChatInput({
               <button
                 type="button"
                 onClick={handleAttachmentButtonClick}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition hover:bg-neutral-200 focus:ring-2 focus:ring-neutral-400 focus:outline-none dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700 dark:focus:ring-neutral-500"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200/80 bg-neutral-100 text-neutral-600 transition hover:bg-neutral-200 focus:ring-2 focus:ring-neutral-400 focus:outline-none dark:border-neutral-700/70 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700 dark:focus:ring-neutral-500"
                 title="Attach files"
               >
                 <Paperclip className="h-4 w-4" />
               </button>
-              <div className="flex rounded-full bg-neutral-100 p-1 dark:bg-neutral-800">
+              <div className="flex h-10 items-center gap-2 rounded-full border border-neutral-200/80 bg-neutral-100 px-2 py-1 transition dark:border-neutral-700/70 dark:bg-neutral-800">
                 <button
                   type="button"
-                  aria-pressed={modelPreference === 'fast'}
-                  onClick={() => handleModelToggle('fast')}
+                  aria-pressed={!isSmartMode}
+                  onClick={() => handlePrimaryModelToggle('fast')}
                   disabled={isModelPreferenceUpdating}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                    modelPreference === 'fast' ?
-                      'bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-100'
-                    : 'text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-white'
-                  } ${isModelPreferenceUpdating ? 'opacity-70' : ''}`}
+                  className={modelPillClass(!isSmartMode)}
                 >
                   Fast
                 </button>
-                <button
-                  type="button"
-                  aria-pressed={modelPreference === 'smart'}
-                  onClick={() => handleModelToggle('smart')}
-                  disabled={isModelPreferenceUpdating}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                    modelPreference === 'smart' ?
-                      'bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-100'
-                    : 'text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-white'
-                  } ${isModelPreferenceUpdating ? 'opacity-70' : ''}`}
-                >
-                  Smart
-                </button>
+                <div className="relative flex items-center overflow-hidden">
+                  <div
+                    className={`transition-[max-width,opacity,transform] duration-200 ease-out ${
+                      isSmartMode ?
+                        'pointer-events-none max-w-0 scale-95 opacity-0'
+                      : 'max-w-[96px] scale-100 opacity-100'
+                    }`}
+                    aria-hidden={isSmartMode}
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={isSmartMode}
+                      onClick={() => handlePrimaryModelToggle('smart')}
+                      disabled={isModelPreferenceUpdating}
+                      className={modelPillClass(isSmartMode)}
+                    >
+                      Smart
+                    </button>
+                  </div>
+                  <div
+                    className={`flex items-center gap-1.5 transition-[max-width,opacity,transform] duration-200 ease-out ${
+                      isSmartMode ?
+                        'max-w-[210px] scale-100 opacity-100'
+                      : 'pointer-events-none max-w-0 scale-95 opacity-0'
+                    }`}
+                    aria-hidden={!isSmartMode}
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={smartVariant === 'sonnet'}
+                      onClick={() => handleSmartModelToggle('sonnet')}
+                      disabled={!isSmartMode || isModelPreferenceUpdating}
+                      className={modelPillClass(smartVariant === 'sonnet', 'compact')}
+                      title="claude-sonnet-4-5-20250929"
+                    >
+                      Sonnet
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={smartVariant === 'opus'}
+                      onClick={() => handleSmartModelToggle('opus')}
+                      disabled={!isSmartMode || isModelPreferenceUpdating}
+                      className={modelPillClass(smartVariant === 'opus', 'compact')}
+                      title="claude-opus-4-5-20251101"
+                    >
+                      Opus
+                    </button>
+                  </div>
+                </div>
               </div>
               {isModelPreferenceUpdating && (
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-neutral-400 dark:text-neutral-300" />

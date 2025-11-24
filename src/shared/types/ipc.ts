@@ -9,7 +9,8 @@ export interface SuccessResponse {
   error?: string;
 }
 
-export type ChatModelPreference = 'fast' | 'smart';
+export type ChatModelPreference = 'fast' | 'smart-sonnet' | 'smart-opus';
+export type SmartModelVariant = 'sonnet' | 'opus';
 
 export interface SerializedAttachmentPayload {
   name: string;

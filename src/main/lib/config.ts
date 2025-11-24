@@ -8,8 +8,27 @@ import type { ChatModelPreference } from '../../shared/types/ipc';
 export interface AppConfig {
   workspaceDir?: string;
   debugMode?: boolean;
-  chatModelPreference?: ChatModelPreference;
+  chatModelPreference?: ChatModelPreference | 'smart';
   apiKey?: string;
+}
+
+const DEFAULT_MODEL_PREFERENCE: ChatModelPreference = 'fast';
+const DEFAULT_SMART_MODEL: ChatModelPreference = 'smart-sonnet';
+
+function normalizeChatModelPreference(
+  preference?: ChatModelPreference | 'smart' | null
+): ChatModelPreference {
+  switch (preference) {
+    case 'fast':
+      return 'fast';
+    case 'smart-opus':
+      return 'smart-opus';
+    case 'smart':
+    case 'smart-sonnet':
+      return DEFAULT_SMART_MODEL;
+    default:
+      return DEFAULT_MODEL_PREFERENCE;
+  }
 }
 
 function getConfigPath(): string {
@@ -102,12 +121,12 @@ export function getDebugMode(): boolean {
 
 export function getChatModelPreferenceSetting(): ChatModelPreference {
   const config = loadConfig();
-  return config.chatModelPreference ?? 'fast';
+  return normalizeChatModelPreference(config.chatModelPreference);
 }
 
 export function setChatModelPreferenceSetting(preference: ChatModelPreference): void {
   const config = loadConfig();
-  config.chatModelPreference = preference;
+  config.chatModelPreference = normalizeChatModelPreference(preference);
   saveConfig(config);
 }
 

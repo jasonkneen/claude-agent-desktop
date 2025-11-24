@@ -24,11 +24,13 @@ import {
 const requireModule = createRequire(import.meta.url);
 
 const FAST_MODEL_ID = 'claude-haiku-4-5-20251001';
-const SMART_MODEL_ID = 'claude-sonnet-4-5-20250929';
+const SMART_SONNET_MODEL_ID = 'claude-sonnet-4-5-20250929';
+const SMART_OPUS_MODEL_ID = 'claude-opus-4-5-20251101';
 
 const MODEL_BY_PREFERENCE: Record<ChatModelPreference, string> = {
   fast: FAST_MODEL_ID,
-  smart: SMART_MODEL_ID
+  'smart-sonnet': SMART_SONNET_MODEL_ID,
+  'smart-opus': SMART_OPUS_MODEL_ID
 };
 
 let currentModelPreference: ChatModelPreference = getChatModelPreferenceSetting();
